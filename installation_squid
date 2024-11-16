@@ -1,0 +1,42 @@
+# /etc/squid/squid.conf (RedHat) ou /etc/squid.conf (SuSE)
+# Intallation Squid
+sudo zypper in squid
+# 1. Création des Répertoires
+
+# Création du répertoire de cache si nécessaire
+sudo mkdir -m 755 /usr/local/squid/cache
+sudo chown squid /usr/local/squid/cache
+sudo chgrp squid /usr/local/squid/cache
+
+# Création du répertoire de logs si nécessaire
+sudo mkdir -m 755 /var/log/squid
+sudo chown squid /var/log/squid
+sudo chgrp squid /var/log/squid
+
+# 2. Permissions et Réorganisation des Utilisateurs et Groupes
+
+# Si l'utilisateur est proxy au groupe proxy
+sudo userdel proxy
+sudo usermod -g squid squid
+sudo chown -R squid:squid /var/log/squid
+sudo chmod -R 755 /var/log/squid
+sudo chown -R squid:squid /var/cache/squid
+sudo chmod -R 755 /var/cache/squid
+
+# Supprimer les fichiers de mémoire partagée pour éviter les conflits
+sudo rm /dev/shm/squid-cf__metadata.shm
+sudo rm /run/squid.pid
+
+# Lancer la création des sous-répertoires
+sudo squid -z
+
+# Service Squid
+sudo systemctl start squid
+sudo systemctl status squid
+sudo systemctl enable squid
+
+# Commandes utiles
+sudo squid -k parse
+sudo squid -k check
+sudo squid -k reconfigure
+sudo squid -NCd1
