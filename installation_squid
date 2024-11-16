@@ -27,6 +27,21 @@ sudo chmod -R 755 /var/cache/squid
 sudo rm /dev/shm/squid-cf__metadata.shm
 sudo rm /run/squid.pid
 
+# si le fichier cache n'exite pas création...
+sudo touch /var/log/squid/cache.log
+# droits et permissions cache
+sudo chmod 755 /var/log/squid/cache.log
+
+# si le fichier access n'exite pas création
+sudo  touch /var/log/squid/access.log
+# droits et permissions access
+sudo  chmod 755 /var/log/squid/access.log
+
+# si le fichier store n'exite pas création
+sudo touch /var/log/squid/store.log
+# droits et permissions store
+sduo chmod 755 /var/log/squid/store.log
+
 # Lancer la création des sous-répertoires
 sudo squid -z
 
