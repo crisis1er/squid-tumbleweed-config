@@ -1,57 +1,523 @@
-# /etc/squid/squid.conf (RedHat) ou /etc/squid.conf (SuSE)
-# Intallation Squid
+Parfait, on est alignés : la liste “Nouveaux mots” d’un chapitre ne contient **que** les termes encore jamais définis auparavant.
+
+Je te réécris maintenant le **manuel Squid complet**, avec cette logique.  
+Je reste concis ici, mais chaque étape reste exploitable pour un débutant.
+
+***
+
+# Manuel Squid (openSUSE) – Version pédagogique
+
+## Chapitre 1 – Objectif et installation de Squid
+
+**Nouveaux mots dans ce chapitre :**
+
+- *proxy* :: logiciel intermédiaire qui reçoit les requêtes des clients et les renvoie vers Internet, en pouvant filtrer ou mettre en cache. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-squid.html)
+- *cache* :: stockage temporaire de réponses (pages, fichiers) pour accélérer les accès et réduire la bande passante. [documentation.suse](https://documentation.suse.com/sles/15-SP6/html/SLES-all/cha-squid.html)
+- *paquet* :: ensemble de fichiers (binaire, config, docs) installé via le gestionnaire de paquets (`zypper`). [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- comprendre le rôle global de Squid dans ton système ;
+- installer le paquet `squid` sur openSUSE ;
+- vérifier rapidement la version installée.
+
+### 1.1. Rôle de Squid sur ta machine
+
+- Squid agira comme **proxy HTTP/HTTPS** uniquement pour ton poste local (`127.0.0.1:3128`). [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-squid.html)
+- Il exploitera un **cache disque** pour accélérer les accès (web, streaming, IA). [documentation.suse](https://documentation.suse.com/sles/15-SP5/html/SLES-all/cha-squid.html)
+- Il filtrera certaines pubs via une **liste de domaines** (pgl.yoyo.org).  
+
+### 1.2. Installation du paquet Squid
+
+```bash
 sudo zypper in squid
-# 1. Création des Répertoires
+```
 
-# Création du répertoire de cache si nécessaire
-sudo mkdir -m 755 /usr/local/squid/cache
-sudo chown squid /usr/local/squid/cache
-sudo chgrp squid /usr/local/squid/cache
+Puis vérifie :
 
-# Création du répertoire de logs si nécessaire
-sudo mkdir -m 755 /var/log/squid
-sudo chown squid /var/log/squid
-sudo chgrp squid /var/log/squid
+```bash
+squid -v
+```
 
-# 2. Permissions et Réorganisation des Utilisateurs et Groupes
+Tu dois voir la version et les options de compilation, ce qui confirme que Squid est prêt à être configuré. [documentation.suse](https://documentation.suse.com/sles/15-SP6/html/SLES-all/cha-squid.html)
 
-# Si l'utilisateur est proxy au groupe proxy
-sudo userdel proxy
+***
+
+## Chapitre 2 – Utilisateurs, groupes et processus
+
+**Nouveaux mots dans ce chapitre :**
+
+- *utilisateur système* :: compte technique utilisé par un service (ex : `squid`), sans session graphique, avec des droits limités. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/)
+- *groupe* :: ensemble d’utilisateurs partageant des droits sur des fichiers et répertoires. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/)
+- *processus* :: programme en cours d’exécution, identifié par un numéro (PID) dans le système. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- vérifier l’éventuelle présence d’un ancien utilisateur `proxy` ;
+- confirmer l’existence de l’utilisateur/groupe `squid` ;
+- préparer la base pour que Squid tourne **sans root**.
+
+### 2.1. Vérifier et éventuellement supprimer l’utilisateur `proxy`
+
+```bash
+getent passwd proxy
+```
+
+- Si aucune sortie : tu peux passer à la suite.
+- Si une ligne apparaît et que tu es sûr qu’aucun autre service ne l’utilise :
+
+  ```bash
+  ps aux | grep proxy
+  ```
+
+  Si rien de critique, tu peux supprimer :
+
+  ```bash
+  sudo userdel proxy
+  ```
+
+> Ne supprime jamais un utilisateur système si tu doutes de son usage.
+
+### 2.2. Vérifier l’utilisateur et le groupe `squid`
+
+```bash
+getent passwd squid
+getent group squid
+```
+
+Si besoin, force l’appartenance au groupe `squid` :
+
+```bash
 sudo usermod -g squid squid
-sudo chown -R squid:squid /var/log/squid
-sudo chmod -R 755 /var/log/squid
-sudo chown -R squid:squid /var/cache/squid
-sudo chmod -R 755 /var/cache/squid
+```
 
-# Supprimer les fichiers de mémoire partagée pour éviter les conflits
-sudo rm /dev/shm/squid-cf__metadata.shm
-sudo rm /run/squid.pid
+***
 
-# si le fichier cache n'exite pas création...
+## Chapitre 3 – Répertoires de cache et de logs
+
+**Nouveaux mots dans ce chapitre :**
+
+- *répertoire* :: dossier dans le système de fichiers, contenant d’autres dossiers ou fichiers.  
+- *permissions* :: règles qui définissent qui peut lire/écrire/exécuter un fichier ou répertoire. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- créer/verifier les répertoires de cache et de logs ;
+- donner les bons droits à l’utilisateur `squid`.
+
+### 3.1. Répertoires utilisés par Squid
+
+Par convention (et dans ton `squid.conf`) :
+
+- cache disque : `/var/cache/squid` ; [docs.redhat](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/deploying_web_servers_and_reverse_proxies/configuring-the-squid-caching-proxy-server_deploying-web-servers-and-reverse-proxies)
+- logs : `/var/log/squid`. [documentation.suse](https://documentation.suse.com/sles/15-SP5/html/SLES-all/cha-squid.html)
+
+Vérifie leur existence :
+
+```bash
+ls -ld /var/cache/squid /var/log/squid
+```
+
+Si un répertoire n’existe pas :
+
+```bash
+sudo mkdir -p /var/cache/squid
+sudo mkdir -p /var/log/squid
+```
+
+### 3.2. Propriétaires et droits
+
+```bash
+sudo chown -R squid:squid /var/cache/squid /var/log/squid
+sudo chmod -R 755 /var/cache/squid /var/log/squid
+ls -ld /var/cache/squid /var/log/squid
+```
+
+Tu dois voir `squid squid` comme propriétaire/groupe sur les deux répertoires.
+
+***
+
+## Chapitre 4 – Fichiers de logs Squid
+
+**Nouveaux mots dans ce chapitre :**
+
+- *journal (log)* :: fichier texte où un service écrit des messages (erreurs, accès, informations). [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-squid.html)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- créer les fichiers de logs s’ils n’existent pas ;
+- appliquer des permissions compatibles avec Squid.
+
+### 4.1. Création des fichiers
+
+```bash
 sudo touch /var/log/squid/cache.log
-# droits et permissions cache
-sudo chmod 755 /var/log/squid/cache.log
-
-# si le fichier access n'exite pas création
-sudo  touch /var/log/squid/access.log
-# droits et permissions access
-sudo  chmod 755 /var/log/squid/access.log
-
-# si le fichier store n'exite pas création
+sudo touch /var/log/squid/access.log
 sudo touch /var/log/squid/store.log
-# droits et permissions store
-sduo chmod 755 /var/log/squid/store.log
+```
 
-# Lancer la création des sous-répertoires
+### 4.2. Propriétaires et droits
+
+```bash
+sudo chown squid:squid /var/log/squid/cache.log \
+                       /var/log/squid/access.log \
+                       /var/log/squid/store.log
+
+sudo chmod 755 /var/log/squid/cache.log \
+               /var/log/squid/access.log \
+               /var/log/squid/store.log
+
+ls -l /var/log/squid
+```
+
+Tu vérifies visuellement que `squid` possède bien ces fichiers.
+
+***
+
+## Chapitre 5 – Nettoyage en cas de crash (fichiers temporaires)
+
+**Nouveaux mots dans ce chapitre :**
+
+- *mémoire partagée* :: zone mémoire accessible par plusieurs processus, souvent exposée sous `/dev/shm`.  
+- *fichier PID* :: fichier contenant l’identifiant du processus (PID), utilisé pour savoir si un service tourne encore. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-systemd.html)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- arrêter Squid proprement ;
+- supprimer certains fichiers temporaires problématiques si Squid refuse de démarrer.
+
+### 5.1. Arrêt de Squid
+
+```bash
+sudo systemctl stop squid
+```
+
+### 5.2. Suppression des fichiers temporaires Squid
+
+```bash
+sudo rm -f /dev/shm/squid-cf__metadata.shm
+sudo rm -f /run/squid.pid
+```
+
+Tu ne fais cela **que** si Squid ne redémarre pas et que le log signale des blocages sur ces fichiers.
+
+***
+
+## Chapitre 6 – Installation de la configuration personnalisée
+
+**Nouveaux mots dans ce chapitre :**
+
+- *fichier de configuration* :: fichier texte qui décrit le comportement d’un service (options, chemins, ACL, etc.). [documentation.suse](https://documentation.suse.com/sles/15-SP6/html/SLES-all/cha-squid.html)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- sauvegarder la configuration d’origine ;
+- installer ton `squid.conf` personnalisé.
+
+### 6.1. Sauvegarder la configuration d’origine
+
+```bash
+sudo cp /etc/squid/squid.conf /etc/squid/squid.conf.orig
+```
+
+### 6.2. Installer ton `squid.conf`
+
+Depuis le répertoire où se trouve ta version finale :
+
+```bash
+sudo cp squid.conf /etc/squid/squid.conf
+sudo chown root:root /etc/squid/squid.conf
+sudo chmod 644 /etc/squid/squid.conf
+```
+
+Vérifie :
+
+```bash
+head -n 20 /etc/squid/squid.conf
+```
+
+***
+
+## Chapitre 7 – Initialisation du cache disque
+
+**Nouveaux mots dans ce chapitre :**
+
+- *directive* :: instruction dans un fichier de configuration, par exemple `cache_dir rock /var/cache/squid ...`. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-squid.html)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- créer la structure interne de répertoires utilisée par Squid pour le cache disque.
+
+### 7.1. Commande d’initialisation
+
+```bash
 sudo squid -z
+```
 
-# Service Squid
-sudo systemctl start squid
-sudo systemctl status squid
-sudo systemctl enable squid
+- Si tout va bien, la commande est silencieuse.
+- En cas de problème :
 
-# Commandes utiles
+```bash
+tail -n 50 /var/log/squid/cache.log
+```
+
+Tu lis les messages pour corriger les chemins/permissions.
+
+***
+
+## Chapitre 8 – Vérification de la configuration Squid
+
+**Nouveaux mots dans ce chapitre :**
+
+- *(aucun nouveau mot – on réutilise ce qui a déjà été expliqué)*  
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- vérifier que `squid.conf` est **syntaxiquement correct** avant de démarrer le service.
+
+### 8.1. Vérification avec `squid -k parse`
+
+```bash
 sudo squid -k parse
+```
+
+Pas de sortie = syntaxe OK (code retour 0).  
+En cas d’erreur, Squid indique le fichier et la ligne à corriger. [documentation.suse](https://documentation.suse.com/sles/15-SP6/html/SLES-all/cha-squid.html)
+
+***
+
+## Chapitre 9 – Démarrage et activation de Squid (systemd)
+
+**Nouveaux mots dans ce chapitre :**
+
+- *systemd* :: système d’initialisation et gestionnaire de services utilisé par openSUSE pour démarrer et superviser les démons. [en.opensuse](https://en.opensuse.org/SDB:Systemd)
+- *systemctl* :: commande pour gérer les unités systemd (start, stop, status, enable, etc.). [manpages.ubuntu](https://manpages.ubuntu.com/manpages/bionic/man1/systemctl.1.html)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- démarrer Squid comme service systemd ;
+- vérifier qu’il tourne correctement ;
+- l’activer au démarrage du système.
+
+### 9.1. Démarrer Squid
+
+```bash
+sudo systemctl start squid
+```
+
+### 9.2. Vérifier l’état
+
+```bash
+sudo systemctl status squid
+```
+
+Tu dois voir `Active: active (running)` et aucune erreur critique dans la sortie. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-systemd.html)
+
+### 9.3. Activer au démarrage
+
+```bash
+sudo systemctl enable squid
+```
+
+***
+
+## Chapitre 10 – Commandes de contrôle et debug
+
+**Nouveaux mots dans ce chapitre :**
+
+- *mode foreground* :: exécution d’un programme au premier plan dans le terminal, avec affichage direct des logs.  
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- apprendre les commandes utiles pour maintenir Squid au quotidien.
+
+### 10.1. Re-vérifier la configuration
+
+```bash
+sudo squid -k parse
+```
+
+### 10.2. Vérifier que Squid répond
+
+```bash
 sudo squid -k check
+```
+
+### 10.3. Recharger la configuration à chaud
+
+```bash
 sudo squid -k reconfigure
+```
+
+### 10.4. Lancer Squid en mode debug
+
+```bash
 sudo squid -NCd1
+```
+
+Tu verras les logs directement dans le terminal, pratique en cas de problème. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-squid.html)
+
+***
+
+## Chapitre 11 – Antipub pgl.yoyo.org (liste de domaines)
+
+**Nouveaux mots dans ce chapitre :**
+
+- *ACL (Access Control List)* :: règle dans Squid qui définit des conditions (IP, ports, domaines…) pour autoriser ou bloquer le trafic. [doc.opensuse](https://doc.opensuse.org/documentation/leap/archive/15.4/reference/html/book-reference/cha-squid.html)
+- *domaine* :: nom lisible d’un site Internet (ex : `example.com`), résolu en adresse IP par le DNS. [doc.opensuse](https://doc.opensuse.org/documentation/leap/reference/html/book-reference/cha-squid.html)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- créer un répertoire ACL ;
+- télécharger la liste des domaines publicitaires pgl.yoyo.org ;
+- connecter cette liste à Squid via une ACL.
+
+### 11.1. Répertoire des ACL
+
+```bash
+sudo mkdir -p /etc/squid/acl
+sudo chown root:root /etc/squid/acl
+sudo chmod 755 /etc/squid/acl
+```
+
+### 11.2. Télécharger la liste pgl.yoyo.org
+
+```bash
+sudo curl -fsSo /etc/squid/acl/pgl_yoyo.domains \
+  'https://pgl.yoyo.org/adservers/serverlist.php?hostformat=dnsmasq&showintro=0&mimetype=plaintext'
+```
+
+Vérifie :
+
+```bash
+ls -l /etc/squid/acl/pgl_yoyo.domains
+head -n 5 /etc/squid/acl/pgl_yoyo.domains
+```
+
+Dans ton `squid.conf`, tu as par exemple :
+
+```bash
+acl yoyo_ads dstdomain "/etc/squid/acl/pgl_yoyo.domains"
+http_access deny yoyo_ads
+```
+
+Ce qui bloque les domaines listés. [pgl.yoyo](https://pgl.yoyo.org/adservers/serverlist.php?hostformat=dnsmasq)
+
+***
+
+## Chapitre 12 – Automatisation de la mise à jour antipub (service + timer)
+
+**Nouveaux mots dans ce chapitre :**
+
+- *timer systemd* :: unité qui déclenche un service à une date/heure ou fréquence donnée (remplaçant “cron” pour certains usages). [documentation.suse](https://documentation.suse.com/sle-micro/6.2/pdf/Micro-systemd-working-with-timers_en.pdf)
+- *service oneshot* :: service systemd qui exécute une action unique et se termine (idéal pour téléchargements ou scripts ponctuels). [documentation.suse](https://documentation.suse.com/smart/systems-management/html/systemd-working-with-timers/index.html)
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- créer un service systemd qui met à jour la liste antipub et recharge Squid ;
+- créer un timer systemd hebdomadaire pour lancer ce service.
+
+### 12.1. Service `squid-update-ads.service`
+
+```bash
+sudo nano /etc/systemd/system/squid-update-ads.service
+```
+
+Contenu :
+
+```ini
+[Unit]
+Description=Update Squid ad blocking list (pgl.yoyo.org)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -fsSo /etc/squid/acl/pgl_yoyo.domains \
+  'https://pgl.yoyo.org/adservers/serverlist.php?hostformat=dnsmasq&showintro=0&mimetype=plaintext'
+ExecStartPost=/usr/sbin/squid -k reconfigure
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 12.2. Timer `squid-update-ads.timer`
+
+```bash
+sudo nano /etc/systemd/system/squid-update-ads.timer
+```
+
+Contenu :
+
+```ini
+[Unit]
+Description=Weekly update of Squid ad blocking list
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=3600
+Persistent=true
+Unit=squid-update-ads.service
+
+[Install]
+WantedBy=timers.target
+```
+
+Ces directives sont dans l’esprit des bonnes pratiques SLES/SUSE pour les timers. [documentation.suse](https://documentation.suse.com/sle-micro/6.2/pdf/Micro-systemd-working-with-timers_en.pdf)
+
+### 12.3. Activation
+
+```bash
+sudo systemctl daemon-reload
+
+sudo systemctl enable squid-update-ads.service
+sudo systemctl enable squid-update-ads.timer
+
+sudo systemctl start squid-update-ads.service
+sudo systemctl start squid-update-ads.timer
+```
+
+Vérifie :
+
+```bash
+systemctl status squid-update-ads.timer
+journalctl -u squid-update-ads.service --no-pager -n 20
+```
+
+***
+
+## Chapitre 13 – Tests fonctionnels (proxy + antipub)
+
+**Nouveaux mots dans ce chapitre :**
+
+- *(aucun nouveau mot – on teste ce qui existe déjà)*  
+
+**Ce que tu vas faire dans ce chapitre :**
+
+- tester le proxy HTTP/HTTPS via `curl` ;
+- valider que l’antipub fonctionne.
+
+### 13.1. Test du proxy
+
+```bash
+http_proxy=http://127.0.0.1:3128 curl https://www.google.com
+```
+
+Si tu obtiens du HTML sans erreur, Squid fonctionne correctement.
+
+### 13.2. Test du blocage antipub
+
+- choisis un domaine listé dans `/etc/squid/acl/pgl_yoyo.domains` ;
+- tente une requête via le proxy ;
+- observe `access.log` :
+
+```bash
+tail -n 50 /var/log/squid/access.log
+```
+
+Tu dois voir des entrées `TCP_DENIED` correspondant à ces domaines bloqués.
+
+***
+
+Si tu veux, je peux maintenant te le transformer en **MediaWiki** (ou autre format) directement exploitable pour ton blog, en gardant cette granularité pédagogique.
