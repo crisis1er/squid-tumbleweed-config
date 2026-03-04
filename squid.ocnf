@@ -34,7 +34,7 @@ uri_whitespace strip
 via off                        # désactive l’en-tête Via
 
 #############################
-# 2. PORTS D’ÉCOUTE         #
+# 2. PORT D’ÉCOUTE (LOCAL)  #
 #############################
 
 # Squid écoute uniquement sur localhost, port 3128
@@ -88,7 +88,7 @@ acl CONNECT method CONNECT
 # Ports WebSocket
 acl WebSocket_ports port 443
 
-# IA
+# IA principales
 acl ai_chatgpt           dstdomain .openai.com
 acl ai_copilot_bing      dstdomain .bing.com
 acl ai_copilot_sydney    dstdomain sydney.bing.com
@@ -96,6 +96,11 @@ acl ai_copilot_microsoft dstdomain s.copilot.microsoft.com
 acl ai_gemini            dstdomain .google.com
 acl ai_claude            dstdomain .anthropic.com .claude.ai
 acl ai_perplexity        dstdomain .perplexity.ai
+
+# IA supplémentaires
+acl ai_deepseek dstdomain .deepseek.com .deepseek.ai
+acl ai_qwen    dstdomain .qwen.ai .tongyi.aliyun.com
+acl ai_grok    dstdomain .x.ai .grok.x.ai
 
 # Streaming
 acl streaming_youtube dstdomain .youtube.com .googlevideo.com
@@ -128,6 +133,9 @@ http_access allow CONNECT ai_copilot_microsoft WebSocket_ports
 http_access allow ai_gemini
 http_access allow ai_claude
 http_access allow ai_perplexity
+http_access allow ai_deepseek
+http_access allow ai_qwen
+http_access allow ai_grok
 
 # Accès streaming
 http_access allow streaming_youtube
@@ -149,12 +157,14 @@ http_access deny all
 #############################
 
 cache_dir rock /var/cache/squid 1000 max-size=32768
+# Si tu veux plus de cache disque :
+# cache_dir rock /var/cache/squid 4000 max-size=32768
 
-cache_mem 2048 MB
+cache_mem 2048 MB                # adapter selon ta RAM (1024 MB si 8 Go RAM)
 quick_abort_min 1024 KB
 maximum_object_size_in_memory 512 MB
 read_ahead_gap 512 KB
-maximum_object_size 256 MB    # cohérent pour vidéo / gros objets
+maximum_object_size 256 MB       # cohérent pour vidéo / gros objets
 cache_swap_low 90
 cache_swap_high 95
 
