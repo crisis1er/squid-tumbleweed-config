@@ -108,6 +108,9 @@ acl streaming_twitch  dstdomain .twitch.tv .ttvnw.net
 acl streaming_vimeo   dstdomain .vimeo.com .vimeocdn.com
 acl streaming_netflix dstdomain .netflix.com .nflxvideo.net
 
+# Liste de domaines publicitaires pgl.yoyo.org
+acl yoyo_ads dstdomain "/etc/squid/acl/pgl_yoyo.domains"
+
 #############################
 # 5. RÈGLES D’ACCÈS         #
 #############################
@@ -119,6 +122,9 @@ http_access deny CONNECT !SSL_ports
 # Accès cachemgr uniquement depuis localhost (optionnel)
 http_access allow localhost manager
 http_access deny manager
+
+# Blocage publicités (pgl.yoyo.org)
+http_access deny yoyo_ads
 
 # Accès infra spécifique
 http_access allow Safe_methods service-src service-dst
@@ -229,14 +235,14 @@ reply_header_access All deny all
 
 refresh_pattern ^ftp:              1440  20% 10080
 refresh_pattern ^gopher:           1440   0% 1440
-refresh_pattern -i (/cgi-bin/|\\?)    0   0%    0
+refresh_pattern -i (/cgi-bin/|\\\\?)    0   0%    0
 refresh_pattern .                     0  20% 4320
 
 # Contenus spécifiques
-refresh_pattern -i \\.(mp4|mkv|flv|avi)$       1440 90% 525600
-refresh_pattern -i \\.kodi\\.tv               1440 90% 525600
-refresh_pattern -i \\.(jpg|jpeg|png|gif)$     1440 90% 525600
-refresh_pattern -i \\.(html|htm|js|css)$        60 50% 1440
+refresh_pattern -i \\\\.(mp4|mkv|flv|avi)$       1440 90% 525600
+refresh_pattern -i \\\\.kodi\\\\.tv               1440 90% 525600
+refresh_pattern -i \\\\.(jpg|jpeg|png|gif)$     1440 90% 525600
+refresh_pattern -i \\\\.(html|htm|js|css)$        60 50% 1440
 
 # Règles de cache spécifiques streaming
 cache allow streaming_youtube
