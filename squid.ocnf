@@ -2,11 +2,14 @@
 # /etc/squid/squid.conf (RedHat) ou /etc/squid.conf (SuSE)
 
 workers 4
+# OK : mode SMP. Bien avec cache_dir rock.
 
 # 3. Configuration des ACLs (Access Control Lists)
 
 acl intermediate_fetching transaction_initiator certificate-fetching
 http_access allow intermediate_fetching
+# ⚠ OK fonctionnel, mais à déplacer plus bas après les règles de sécurité
+# (deny !Safe_ports, deny CONNECT !SSL_ports) pour éviter d’ouvrir trop tôt.
 
 # Example rule allowing access from your local networks.
 # Adapt to list your (internal) IP networks from where browsing
@@ -21,6 +24,9 @@ acl localnet src fc00::/7       	# RFC 4193 local private network range
 acl localnet src fe80::/10      	# RFC 4291 link-local (directly plugged) machines
 
 acl SSL_ports port 443
+# ⚠ À enrichir éventuellement :
+# acl SSL_ports port 443 563 8443 9443 8080   # ports HTTPS fréquents
+
 acl Safe_ports port 80		# http
 acl Safe_ports port 21		# ftp
 acl Safe_ports port 443		# https
@@ -32,26 +38,46 @@ acl Safe_ports port 488		# gss-http
 acl Safe_ports port 591		# filemaker
 acl Safe_ports port 777		# multiling http
 acl Safe_ports port 1025-65535 # unregistered ports
+# ⚠ Doublon : la dernière ligne 1025-65535 est répétée (inutile)
+# => COM : commenter ou supprimer cette ligne
+# acl Safe_ports port 1025-65535 # unregistered ports   # <<< doublon
 
 acl Safe_methods method GET POST OPTIONS CONNECT
 acl service-src src "/etc/squid/acl/infra-src.acl"
 acl service-dst dst all
 
+# ⚠ ACL CONNECT manquante mais utilisée plus bas
+acl CONNECT method CONNECT    # <<< À AJOUTER pour que "CONNECT" soit défini
+
 # 5. Règles d'Accès
 
 http_access deny !Safe_ports
+# OK : à garder tout en haut du bloc http_access
+
 http_access allow Safe_methods service-src service-dst
 http_access deny service-src
+# OK pour ton cas (autoriser quelques méthodes depuis tes IP infra, puis deny le reste).
 
 # ACLs pour services d'IA
 acl ai_chatgpt dstdomain .openai.com
 acl ai_copilot_bing dstdomain .bing.com
 acl ai_copilot_sydney dstdomain sydney.bing.com WebSocket_ports
+# ⚠ Problème :
+#  - "dstdomain" n'accepte que des noms de domaines, pas d'autres ACL
+#  - WebSocket_ports n'est pas encore défini ici
+# => Corriger ainsi :
+# acl ai_copilot_sydney dstdomain sydney.bing.com            # <<< correction
+
 acl ai_copilot_microsoft dstdomain s.copilot.microsoft.com WebSocket_ports
+# Même problème :
+# acl ai_copilot_microsoft dstdomain s.copilot.microsoft.com  # <<< correction
+
 acl ai_gemini dstdomain .google.com
 acl ai_claude dstdomain .anthropic.com .claude.ai
 acl ai_perplexity dstdomain .perplexity.ai
 acl WebSocket_ports port 443
+# ⚠ À remonter AVANT l’utilisation dans les ACL ai_* si tu veux les combiner avec CONNECT.
+# Dans ta logique actuelle, tu l’utilises plus bas correctement dans http_access.
 
 # ACLs pour services de streaming
 acl streaming_youtube dstdomain .youtube.com .googlevideo.com
@@ -65,6 +91,8 @@ http_access allow ai_copilot_sydney
 http_access allow ai_copilot_microsoft
 http_access allow CONNECT ai_copilot_sydney WebSocket_ports
 http_access allow CONNECT ai_copilot_microsoft WebSocket_ports
+# ⚠ Une fois les ACL ai_* corrigées, ceci est OK.
+# Attention : ces règles viennent AVANT le gros bloc localnet, donc l’IA est autorisée même si localnet est restreint.
 
 http_access allow ai_gemini
 http_access allow ai_claude
@@ -75,26 +103,34 @@ http_access allow streaming_twitch
 http_access allow streaming_vimeo
 
 # Règles de cache spécifiques pour streaming
-refresh_pattern -i \.(mp4|mkv|flv|avi)$ 1440 90% 525600
+refresh_pattern -i \\.(mp4|mkv|flv|avi)$ 1440 90% 525600
 cache allow streaming_youtube
 cache allow streaming_netflix
 cache allow streaming_twitch
 cache allow streaming_vimeo
+# ⚠ cohérent, MAIS limité par maximum_object_size (voir plus bas)
 
 http_access allow localnet
 http_access allow localhost
 
 http_access deny all
+# OK : règle finale
 
 # 6. Configuration du Cache
 
 cache_dir rock /var/cache/squid 1000 max-size=32768
+# OK : adapté au mode SMP + SSD
 
 cache_mem 2048 MB
 quick_abort_min 1024 KB
 maximum_object_size_in_memory 512 MB
 read_ahead_gap 512 KB
 maximum_object_size 4096 KB
+# ⚠ Problème de cohérence avec le cache vidéo :
+#  - 4096 KB = 4 Mo => la plupart des vidéos ne seront JAMAIS mises en cache
+# => pour ton usage (streaming), je te propose :
+# maximum_object_size 256 MB      # <<< valeur beaucoup plus cohérente
+
 cache_swap_low 90
 cache_swap_high 95
 
@@ -110,6 +146,7 @@ request_header_access User-Agent deny all
 request_header_access Referer deny all
 request_header_access From deny all
 request_header_access To deny all
+# OK : politique d’anonymisation agressive côté client
 
 # Autoriser les en-têtes essentiels (requêtes du client)
 request_header_access Allow allow all
@@ -147,29 +184,42 @@ reply_header_access Proxy-Authenticate allow all
 
 # Refuser tous les autres en-têtes (réponses du serveur)
 reply_header_access All deny all
+# OK : cohérent avec anonymisation forte
 
 # 9. Configuration des Rafraîchissements
 
 refresh_pattern ^ftp:		1440	20%	10080
 refresh_pattern ^gopher:	1440	0%	1440
-refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
+refresh_pattern -i (/cgi-bin/|\\?) 0	0%	0
 refresh_pattern .		0	20%	4320
 
 # Règles de rafraîchissement pour différents types de contenu
-refresh_pattern -i \.(mp4|mkv|flv|avi)$ 1440 90% 525600
-refresh_pattern -i \.kodi\.tv 1440 90% 525600
-refresh_pattern -i \.(jpg|jpeg|png|gif)$ 1440 90% 525600
-refresh_pattern -i \.(html|htm|js|css)$ 60 50% 1440
+refresh_pattern -i \\.(mp4|mkv|flv|avi)$ 1440 90% 525600
+refresh_pattern -i \\.kodi\\.tv 1440 90% 525600
+refresh_pattern -i \\.(jpg|jpeg|png|gif)$ 1440 90% 525600
+refresh_pattern -i \\.(html|htm|js|css)$ 60 50% 1440
+# ⚠ Tu as déjà défini les patterns mp4 plus haut. Un seul bloc suffit.
+# Tu peux garder ce bloc complet et supprimer la première ligne "refresh_pattern -i \\.(mp4...)"
+# en haut de section.
 
 # Squid normally listens to port 3128
 http_port 3128
 http_port 127.0.0.1:3128
 http_port 127.0.0.1:443
 
+# ⚠ Problèmes :
+# - http_port 3128 écoute déjà sur 127.0.0.1 :3128, donc doublon.
+# - http_port 127.0.0.1:443 nécessite une config HTTPS/ssl-bump complète (absente ici).
+# => Propre pour maintenant :
+# http_port 3128                      # écoute sur toutes les interfaces (dont loopback)
+# # http_port 127.0.0.1:3128          # <<< doublon à commenter
+# # http_port 127.0.0.1:443           # <<< à commenter sauf si tu ajoutes ssl-bump
+
 # Autres configurations
 
 cache_effective_user squid
 cache_effective_group squid
+# OK et indispensables
 
 coredump_dir /var/cache/squid
 error_directory /usr/share/squid/errors/fr
@@ -180,21 +230,32 @@ dns_nameservers 127.0.0.1 ::1
 dns_defnames on
 dns_retransmit_interval 2 seconds
 dns_timeout 5 minutes
+
 forwarded_for off
+# ⚠ Contradiction avec "forwarded_for delete" plus bas.
+# Dans ton usage, delete est plus strict/anonyme.
+# => commenter celle-ci :
+# forwarded_for off        # <<< à commenter
+
 half_closed_clients off
 httpd_suppress_version_string on
 ignore_unknown_nameservers on
 pipeline_prefetch 1
 retry_on_error on
 strip_query_terms off
+# ⚠ Déprécié/obsolète dans les Squid récents. À commenter :
+# strip_query_terms off   # <<< à commenter
+
 uri_whitespace strip
 visible_hostname XXXX
+# ⚠ Remplacer XXXX par ton hostname réel
 
 # Désactiver l'en-tête Via
 via off
 
 # Supprimer l'en-tête X-Forwarded-For
 forwarded_for delete
+# OK (une fois la version "off" commentée au-dessus)
 
 # Service Squid
 # sudo systemctl start squid
@@ -206,64 +267,24 @@ forwarded_for delete
 # sudo squid -k check
 # sudo squid -k reconfigure
 # sudo squid -NCd1
+
 # New File at / · crisis1er/squid-tumbleweed-config
 # Recommended minimum configuration:
 #
+# ⚠ À partir d’ici, c’est la configuration par défaut recollée telle quelle.
+# Elle duplique des directives déjà définies plus haut (http_access, http_port, coredump_dir, refresh_pattern, etc.)
+# => Je te conseille de COMMENTER TOUT ce bloc, ou de le supprimer du fichier.
+# Pour illustrer, je mets juste le début en commenté :
 
-
-#
-# Recommended minimum Access Permission configuration:
-#
-# Deny requests to certain unsafe ports
-http_access deny !Safe_ports
-
-# Deny CONNECT to other than secure SSL ports
-http_access deny CONNECT !SSL_ports
-
-# Only allow cachemgr access from localhost
-http_access allow localhost manager
-http_access deny manager
-
-# This default configuration only allows localhost requests because a more
-# permissive Squid installation could introduce new attack vectors into the
-# network by proxying external TCP connections to unprotected services.
-http_access allow localhost
-
-# The two deny rules below are unnecessary in this default configuration
-# because they are followed by a "deny all" rule. However, they may become
-# critically important when you start allowing external requests below them.
-
-# Protect web applications running on the same server as Squid. They often
-# assume that only local users can access them at "localhost" ports.
-http_access deny to_localhost
-
-# Protect cloud servers that provide local users with sensitive info about
-# their server via certain well-known link-local (a.k.a. APIPA) addresses.
-http_access deny to_linklocal
-
-#
-# INSERT YOUR OWN RULE(S) HERE TO ALLOW ACCESS FROM YOUR CLIENTS
-#
-
-# For example, to allow access from your local networks, you may uncomment the
-# following rule (and/or add rules that match your definition of "local"):
-# http_access allow localnet
-
-# And finally deny all other access to this proxy
-http_access deny all
-
-# Squid normally listens to port 3128
-http_port 3128
-
-# Uncomment and adjust the following to add a disk cache directory.
-#cache_dir ufs /var/cache/squid 100 16 256
-
-# Leave coredumps in the first cache dir
-coredump_dir /var/cache/squid
-
-#
-# Add any of your own refresh_pattern entries above these.
-#
-refresh_pattern ^ftp:		1440	20%	10080
-refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
-refresh_pattern .		0	20%	4320
+# #
+# # Recommended minimum Access Permission configuration:
+# #
+# http_access deny !Safe_ports
+# http_access deny CONNECT !SSL_ports
+# ...
+# http_port 3128
+# coredump_dir /var/cache/squid
+# refresh_pattern ^ftp: 1440 20% 10080
+# refresh_pattern -i (/cgi-bin/|\\?) 0 0% 0
+# refresh_pattern . 0 20% 4320
+# etc.
