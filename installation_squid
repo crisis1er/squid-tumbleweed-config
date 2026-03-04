@@ -1,9 +1,3 @@
-Parfait, on est alignés : la liste “Nouveaux mots” d’un chapitre ne contient **que** les termes encore jamais définis auparavant.
-
-Je te réécris maintenant le **manuel Squid complet**, avec cette logique.  
-Je reste concis ici, mais chaque étape reste exploitable pour un débutant.
-
-***
 
 # Manuel Squid (openSUSE) – Version pédagogique
 
@@ -520,4 +514,3 @@ Tu dois voir des entrées `TCP_DENIED` correspondant à ces domaines bloqués.
 
 ***
 
-Si tu veux, je peux maintenant te le transformer en **MediaWiki** (ou autre format) directement exploitable pour ton blog, en gardant cette granularité pédagogique.
