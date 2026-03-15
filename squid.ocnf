@@ -11,6 +11,10 @@ workers 4
 cache_effective_user squid
 cache_effective_group squid
 
+# Désactiver pinger (ICMP RTT) : pas de parents/peers, CPU inutile
+pinger_enable off
+
+
 # visible_hostname tumbleweed.local
 coredump_dir /var/cache/squid
 error_directory /usr/share/squid/errors/fr
@@ -139,8 +143,20 @@ http_access deny all
 #############################
 # 7. CACHE                  #
 #############################
-
-cache_dir rock /var/cache/squid 1000 max-size=32768
+cache deny ai_chatgpt
+cache deny ai_claude
+cache deny ai_gemini
+cache deny ai_perplexity
+cache deny ai_deepseek
+cache deny ai_grok
+cache deny ai_qwen
+cache deny ai_copilot_bing
+cache deny ai_copilot_sydney
+cache deny ai_copilot_microsoft
+# cache_dir rock /var/cache/squid 1000 max-size=32768
+# cache_dir aufs /var/cache/squid 1000 16 256
+# cache_dir ufs /var/cache/squid 1000 16 256
+cache_dir diskd /var/cache/squid 1000 16 256
 cache_mem 2048 MB
 quick_abort_min 1024 KB
 maximum_object_size_in_memory 32 MB
@@ -148,9 +164,9 @@ maximum_object_size 256 MB
 cache_swap_low 90
 cache_swap_high 95
 
-cache allow streaming_youtube
-cache allow streaming_twitch
-cache allow streaming_vimeo
+# cache allow streaming_youtube
+# cache allow streaming_twitch
+# cache allow streaming_vimeo
 
 #############################
 # 8. LOGS                   #
@@ -219,4 +235,4 @@ refresh_pattern .                            0  20% 4320
 # sudo squid -k parse 2>&1 | grep -E "(ERROR|WARNING|FATAL)"
 # sudo squid -k reconfigure
 # sudo systemctl restart squid
-# curl -x http://127.0.0.1:3128 -I https://www.perplexity.ai
+# curl -x http://127.0.0.1:10000 -I https://www.perplexity.ai
