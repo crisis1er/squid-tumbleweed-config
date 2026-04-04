@@ -1,0 +1,20 @@
+[Unit]
+Description=Update Squid ad blocking list (pgl.yoyo.org)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Restart=on-failure
+RestartSec=30s
+# Download to a temporary file
+ExecStart=/usr/bin/curl -fsSo /tmp/pgl_yoyo_raw.domains \
+  "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=squid&showintro=0&mimetype=plaintext"
+# Prefix entries with '.' to cover subdomains, then deploy
+ExecStartPost=/bin/bash -c \
+  "sed 's/^\([^#.]\)/.\1/' /tmp/pgl_yoyo_raw.domains > /etc/squid/acl/pgl_yoyo.domains"
+# Reload Squid without restart
+ExecStartPost=/usr/sbin/squid -k reconfigure
+
+[Install]
+WantedBy=multi-user.target

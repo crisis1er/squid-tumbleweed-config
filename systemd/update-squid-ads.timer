@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly update of Squid ad blocking list
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
