@@ -25,21 +25,20 @@ Key design goals:
 
 ---
 
-
 ## Architecture — HTTP/HTTPS proxy flow
 
 ```mermaid
 flowchart TD
-    classDef client fill:#2d3748,stroke:#a0aec0,stroke-width:2px,color:#fff
-    classDef proxy fill:#5a67d8,stroke:#c3dafe,stroke-width:2px,color:#fff
-    classDef decision fill:#c53030,stroke:#fed7d7,stroke-width:2px,color:#fff
-    classDef blocked fill:#742a2a,stroke:#fc8181,stroke-width:2px,color:#fff
-    classDef allowed fill:#276749,stroke:#9ae6b4,stroke-width:2px,color:#fff
-    classDef cache fill:#2c5282,stroke:#90cdf4,stroke-width:2px,color:#fff
-    classDef dns fill:#553c9a,stroke:#d6bcfa,stroke-width:2px,color:#fff
-    classDef upstream fill:#2f855a,stroke:#c6f6d5,stroke-width:2px,color:#fff
-    classDef monitoring fill:#319795,stroke:#b2f5ea,stroke-width:2px,color:#fff
-    classDef logs fill:#744210,stroke:#fbd38d,stroke-width:2px,color:#fff
+    classDef client fill:#374151,stroke:#9ca3af,stroke-width:2px,color:#ffffff
+    classDef proxy fill:#1e40af,stroke:#93c5fd,stroke-width:2px,color:#ffffff
+    classDef decision fill:#b45309,stroke:#fcd34d,stroke-width:2px,color:#ffffff
+    classDef blocked fill:#991b1b,stroke:#fca5a5,stroke-width:2px,color:#ffffff
+    classDef allowed fill:#15803d,stroke:#86efac,stroke-width:2px,color:#ffffff
+    classDef cache fill:#1d4ed8,stroke:#bfdbfe,stroke-width:2px,color:#ffffff
+    classDef dns fill:#6b21a8,stroke:#d8b4fe,stroke-width:2px,color:#ffffff
+    classDef upstream fill:#047857,stroke:#6ee7b7,stroke-width:2px,color:#ffffff
+    classDef monitoring fill:#0f766e,stroke:#5eead4,stroke-width:2px,color:#ffffff
+    classDef logs fill:#c2410c,stroke:#fdba74,stroke-width:2px,color:#ffffff
 
     A[Browser / App / KVM VM]:::client
     B[Squid - port 10000]:::proxy
@@ -49,12 +48,12 @@ flowchart TD
     F[TCP DENIED - ad domain]:::blocked
     G{ACL routing}:::decision
     H[AI services - no cache]:::allowed
-    I[Streaming - YouTube Netflix Twitch Vimeo]:::allowed
+    I[Streaming - YouTube Netflix Twitch]:::allowed
     J[Dev - GitHub]:::allowed
     K[localnet / localhost]:::allowed
     L[DENIED - all others]:::blocked
     M{Delay pool check}:::decision
-    N[ISO / IMG - limited to 10 MB/s]:::cache
+    N[ISO and IMG - limited to 10 MB/s]:::cache
     O{Cache check}:::cache
     P[HIT - cached response returned]:::cache
     Q[Unbound - 127.0.0.1 port 53]:::dns
@@ -75,7 +74,7 @@ flowchart TD
     E -->|Blocked domain| F
     E -->|Allowed domain| G
 
-    G -->|AI - ChatGPT Claude Gemini...| H
+    G -->|AI services| H
     G -->|Streaming| I
     G -->|Dev| J
     G -->|localnet| K
@@ -86,10 +85,10 @@ flowchart TD
     J --> O
     K --> O
 
-    M -->|ISO/IMG request| N
+    M -->|ISO or IMG request| N
     M -->|Other request| Q
 
-    N -->|Throttled upload| S
+    N -->|Throttled| S
 
     O -->|HIT| P
     O -->|MISS| Q
@@ -108,6 +107,7 @@ flowchart TD
     Y -->|index| Z
 ```
 
+---
 
 ## System requirements
 
