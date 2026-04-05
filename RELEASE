@@ -1,6 +1,42 @@
-# RELEASE
+# RELEASE — squid-tumbleweed-config
 
-Version: v3.0
-Date:    2026-04-05
+Version:  v3.0
+Date:     2026-04-04
+Platform: openSUSE Tumbleweed
+Squid:    6.x
 
-See CHANGELOG.md for details.
+---
+
+## What's in this release
+
+### New ACLs
+- `ai_zml` — Z.ai (.z.ai) with WebSocket (CONNECT) support
+- `ai_kimi` — Kimi AI (.kimi.ai .moonshot.cn .moonshot.ai) with WebSocket support
+- `vpn_nordvpn` — NordVPN browser extension (.nordvpn.com .nordvpn.net)
+- `dev_github` — GitHub and assets (.github.com .githubusercontent.com .githubassets.com)
+
+### Streaming
+- Extended `streaming_twitch` with full CDN: .twitchscdn.net .jtvnw.net
+
+### Cache
+- `refresh_pattern` for .iso and .img files — cached up to 1 year, 100% freshness
+- `cache deny` added for ai_zml and ai_kimi — real-time responses only
+- `pipeline_prefetch` set to 0 — prevents head-of-line blocking on multi-worker setup
+
+### Throttling
+- Delay pools: ISO and disk image downloads limited to 10 MB/s (burst: 20 MB)
+
+---
+
+## Current configuration summary
+
+| Parameter         | Value                                 |
+|-------------------|---------------------------------------|
+| Workers           | 4                                     |
+| Listen port       | 10000                                 |
+| Disk cache        | 1 GB (diskd)                          |
+| Memory cache      | 512 MB per worker                     |
+| DNS               | Unbound 127.0.0.1 / ::1              |
+| TLS policy        | PROFILE=SYSTEM — NO_SSLv3/TLSv1/1.1  |
+| Ad blocking       | pgl.yoyo.org (~3500 domains)          |
+| Header anonymization | forwarded_for delete, via off      |
