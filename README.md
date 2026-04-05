@@ -25,6 +25,90 @@ Key design goals:
 
 ---
 
+
+## Architecture — HTTP/HTTPS proxy flow
+
+```mermaid
+flowchart TD
+    classDef client fill:#2d3748,stroke:#a0aec0,stroke-width:2px,color:#fff
+    classDef proxy fill:#5a67d8,stroke:#c3dafe,stroke-width:2px,color:#fff
+    classDef decision fill:#c53030,stroke:#fed7d7,stroke-width:2px,color:#fff
+    classDef blocked fill:#742a2a,stroke:#fc8181,stroke-width:2px,color:#fff
+    classDef allowed fill:#276749,stroke:#9ae6b4,stroke-width:2px,color:#fff
+    classDef cache fill:#2c5282,stroke:#90cdf4,stroke-width:2px,color:#fff
+    classDef dns fill:#553c9a,stroke:#d6bcfa,stroke-width:2px,color:#fff
+    classDef upstream fill:#2f855a,stroke:#c6f6d5,stroke-width:2px,color:#fff
+    classDef monitoring fill:#319795,stroke:#b2f5ea,stroke-width:2px,color:#fff
+    classDef logs fill:#744210,stroke:#fbd38d,stroke-width:2px,color:#fff
+
+    A[Browser / App / KVM VM]:::client
+    B[Squid - port 10000]:::proxy
+    C{Safe ports check}:::decision
+    D[TCP DENIED - unsafe port]:::blocked
+    E{Ad-block - yoyo_ads}:::decision
+    F[TCP DENIED - ad domain]:::blocked
+    G{ACL routing}:::decision
+    H[AI services - no cache]:::allowed
+    I[Streaming - YouTube Netflix Twitch Vimeo]:::allowed
+    J[Dev - GitHub]:::allowed
+    K[localnet / localhost]:::allowed
+    L[DENIED - all others]:::blocked
+    M{Delay pool check}:::decision
+    N[ISO / IMG - limited to 10 MB/s]:::cache
+    O{Cache check}:::cache
+    P[HIT - cached response returned]:::cache
+    Q[Unbound - 127.0.0.1 port 53]:::dns
+    R[Quad9 - DoT port 853]:::upstream
+    S[Internet upstream - TLS PROFILE=SYSTEM]:::upstream
+    T[Response to client]:::client
+    U[squid_exporter - port 9116]:::monitoring
+    V[Prometheus]:::monitoring
+    W[Grafana]:::monitoring
+    X[access.log / store.log]:::logs
+    Y[Alloy]:::logs
+    Z[Loki]:::logs
+
+    A -->|HTTP/HTTPS port 10000| B
+    B --> C
+    C -->|Unsafe port| D
+    C -->|Safe port| E
+    E -->|Blocked domain| F
+    E -->|Allowed domain| G
+
+    G -->|AI - ChatGPT Claude Gemini...| H
+    G -->|Streaming| I
+    G -->|Dev| J
+    G -->|localnet| K
+    G -->|Other| L
+
+    H -->|Bypass cache| M
+    I --> O
+    J --> O
+    K --> O
+
+    M -->|ISO/IMG request| N
+    M -->|Other request| Q
+
+    N -->|Throttled upload| S
+
+    O -->|HIT| P
+    O -->|MISS| Q
+
+    Q -->|DNS query| R
+    R -->|Resolved| S
+    S -->|Response| T
+    P --> T
+
+    B -->|metrics| U
+    U --> V
+    V --> W
+
+    B -->|write| X
+    X -->|forward| Y
+    Y -->|index| Z
+```
+
+
 ## System requirements
 
 | Component | Version |
