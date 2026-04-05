@@ -39,8 +39,10 @@ flowchart TD
     classDef upstream fill:#047857,stroke:#6ee7b7,stroke-width:2px,color:#ffffff
     classDef monitoring fill:#0f766e,stroke:#5eead4,stroke-width:2px,color:#ffffff
     classDef logs fill:#c2410c,stroke:#fdba74,stroke-width:2px,color:#ffffff
+    classDef firewall fill:#831843,stroke:#f9a8d4,stroke-width:2px,color:#ffffff
 
     A[Browser / App / KVM VM]:::client
+    FW[firewalld - inbound port 10000 TCP - localnet and KVM bridge]:::firewall
     B[Squid - port 10000]:::proxy
     C{Safe ports check}:::decision
     D[TCP DENIED - unsafe port]:::blocked
@@ -67,7 +69,8 @@ flowchart TD
     Y[Alloy]:::logs
     Z[Loki]:::logs
 
-    A -->|HTTP/HTTPS port 10000| B
+    A -->|HTTP/HTTPS| FW
+    FW -->|port 10000 allowed| B
     B --> C
     C -->|Unsafe port| D
     C -->|Safe port| E
