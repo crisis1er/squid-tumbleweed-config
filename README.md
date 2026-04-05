@@ -26,7 +26,8 @@ Key design goals:
 ---
 
 ## Architecture — HTTP/HTTPS proxy flow
-> ⚠️ *If the diagram is not visible, refresh the page — Mermaid rendering may 
+
+<sub>⚠️ If the diagram is not visible, refresh the page — Mermaid rendering may take a moment.</sub>
 ```mermaid
 flowchart TD
     classDef client fill:#374151,stroke:#9ca3af,stroke-width:2px,color:#ffffff
