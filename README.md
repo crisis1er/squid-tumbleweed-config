@@ -2,7 +2,7 @@
 
 ![Squid](https://img.shields.io/badge/Squid-6.x-red)
 ![Platform](https://img.shields.io/badge/platform-openSUSE%20Tumbleweed-73BA25)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 ![Privacy](https://img.shields.io/badge/privacy-anonymized-blue)
 ![Ad blocking](https://img.shields.io/badge/ad%20blocking-pgl.yoyo.org-orange)
 
@@ -331,4 +331,4 @@ Please include your Squid version (`squid -v`) and openSUSE version in bug repor
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+GPL-3.0 License — see [LICENSE](LICENSE) for details.
