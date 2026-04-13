@@ -4,6 +4,13 @@ All notable changes to this configuration are documented here.
 
 ---
 
+## [3.1] — 2026-04-13
+
+### Security
+- Restricted `squid.conf` permissions to `640` (root:root) — prevents world-readable access to proxy configuration (Lynis SQD-3613)
+
+---
+
 ## [3.0] — 2026-04-04
 
 ### Added

@@ -225,6 +225,7 @@ sudo zypper install squid
 
 ```bash
 sudo cp squid.conf /etc/squid/squid.conf
+sudo chmod 640 /etc/squid/squid.conf
 ```
 
 Edit the listen addresses in **Section 2** to match your network:
