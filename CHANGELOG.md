@@ -4,6 +4,20 @@ All notable changes to this configuration are documented here.
 
 ---
 
+## [3.2] — 2026-04-18
+
+### Security
+- Added `acl URN proto URN` + `http_access deny URN` — mitigation CVE-2025-54574 (heap buffer overflow RCE via URN)
+- Added `acl HTTP_TRACE method TRACE` + `http_access deny HTTP_TRACE` — blocks HTTP TRACE method (XST prevention)
+- Both deny rules placed after all `http_access allow` entries — AI/web traffic unaffected
+- Removed redundant `cachemgr_passwd` directive — access already restricted via `http_access allow localhost manager` + `http_access deny manager`
+
+### Changed
+- Removed `acl gopher_proto proto GOPHER` — Gopher protocol removed from Squid 7.4
+- Updated Squid version reference: 6.x → 7.4
+
+---
+
 ## [3.1] — 2026-04-13
 
 ### Security

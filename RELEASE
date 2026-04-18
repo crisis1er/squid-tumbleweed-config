@@ -1,9 +1,9 @@
 # RELEASE — squid-tumbleweed-config
 
-Version:  v3.0
-Date:     2026-04-04
+Version:  v3.2
+Date:     2026-04-18
 Platform: openSUSE Tumbleweed
-Squid:    6.x
+Squid:    7.4
 
 ---
 
