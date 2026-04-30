@@ -1,7 +1,7 @@
 # RELEASE — squid-tumbleweed-config
 
-Version:  v3.2
-Date:     2026-04-18
+Version:  v3.3
+Date:     2026-04-30
 Platform: openSUSE Tumbleweed
 Squid:    7.4
 
@@ -9,34 +9,52 @@ Squid:    7.4
 
 ## What's in this release
 
-### New ACLs
-- `ai_zml` — Z.ai (.z.ai) with WebSocket (CONNECT) support
-- `ai_kimi` — Kimi AI (.kimi.ai .moonshot.cn .moonshot.ai) with WebSocket support
-- `vpn_nordvpn` — NordVPN browser extension (.nordvpn.com .nordvpn.net)
-- `dev_github` — GitHub and assets (.github.com .githubusercontent.com .githubassets.com)
+### v3.3 — HaGeZi PRO++ ad list + Google admin UI whitelist
+- ACL `yoyo_ads` renamed to `ads_block` — reflects the actual source list now in use
+- Ad list source: pgl.yoyo.org (~3,500 domains) → HaGeZi PRO++ (~233,600 domains)
+- New ACL `google_admin_ui` for Search Console, GA admin, Tag Manager admin
+- `http_access allow google_admin_ui` placed before `deny CONNECT ads_block`
+  — admin UIs work even though their domains may appear in the ad-block list
+- Tracker beacons (www.google-analytics.com, googletagmanager.com, doubleclick.net …)
+  remain blocked at DNS level via [unbound-tumbleweed-config](https://github.com/crisis1er/unbound-tumbleweed-config)
 
-### Streaming
-- Extended `streaming_twitch` with full CDN: .twitchscdn.net .jtvnw.net
+---
 
-### Cache
-- `refresh_pattern` for .iso and .img files — cached up to 1 year, 100% freshness
-- `cache deny` added for ai_zml and ai_kimi — real-time responses only
-- `pipeline_prefetch` set to 0 — prevents head-of-line blocking on multi-worker setup
+### v3.2 — CVE-2025-54574 mitigation + HTTP TRACE block
+- `acl URN proto URN` + `http_access deny URN` — mitigates CVE-2025-54574 (URN heap buffer overflow RCE)
+- `acl HTTP_TRACE method TRACE` + `http_access deny HTTP_TRACE` — blocks XST attacks
+- Removed redundant `cachemgr_passwd` directive (manager already restricted via ACL)
+- Removed `acl gopher_proto proto GOPHER` — protocol removed from Squid 7.4
+- Squid version reference updated: 6.x → 7.4
 
-### Throttling
-- Delay pools: ISO and disk image downloads limited to 10 MB/s (burst: 20 MB)
+---
+
+### v3.1 — Tightened squid.conf permissions
+- Restricted `squid.conf` to `640 root:root` — Lynis SQD-3613 hardening
+
+---
+
+### v3.0 — Multi-AI / streaming / dev support
+- New ACLs: `ai_zml` (.z.ai), `ai_kimi` (.kimi.ai .moonshot.cn .moonshot.ai)
+- New ACLs: `vpn_nordvpn`, `dev_github`
+- Streaming: extended `streaming_twitch` with full CDN
+- WebSocket (`CONNECT`) support for ZML and Kimi
+- `refresh_pattern` for `.iso` and `.img` (cache up to 1 year)
+- Delay pools: ISO/image downloads throttled to 10 MB/s (burst 20 MB)
+- `cache deny` for ai_zml and ai_kimi — real-time responses
+- `pipeline_prefetch 0` — prevents head-of-line blocking on multi-worker setup
 
 ---
 
 ## Current configuration summary
 
-| Parameter         | Value                                 |
-|-------------------|---------------------------------------|
-| Workers           | 4                                     |
-| Listen port       | 10000                                 |
-| Disk cache        | 1 GB (diskd)                          |
-| Memory cache      | 512 MB per worker                     |
-| DNS               | Unbound 127.0.0.1 / ::1              |
-| TLS policy        | PROFILE=SYSTEM — NO_SSLv3/TLSv1/1.1  |
-| Ad blocking       | pgl.yoyo.org (~3500 domains)          |
-| Header anonymization | forwarded_for delete, via off      |
+| Parameter            | Value                                |
+|----------------------|--------------------------------------|
+| Workers              | 4                                    |
+| Listen port          | 10000                                |
+| Disk cache           | 1 GB (diskd)                         |
+| Memory cache         | 512 MB per worker                    |
+| DNS                  | Unbound 127.0.0.1 / ::1              |
+| TLS policy           | PROFILE=SYSTEM — NO_SSLv3/TLSv1/1.1  |
+| Ad blocking          | HaGeZi PRO++ (~233,600 domains)      |
+| Header anonymization | forwarded_for delete, via off        |
