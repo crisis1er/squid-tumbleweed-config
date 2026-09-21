@@ -3,7 +3,7 @@ set -e
 
 TMP=/tmp/hagezi_pro_raw.domains
 DEST=/etc/squid/acl/hagezi_pro.domains
-URL="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.plus.txt"
+URL="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt"
 
 curl -fsSo "$TMP" "$URL"
 
